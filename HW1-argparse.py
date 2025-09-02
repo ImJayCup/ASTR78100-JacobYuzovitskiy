@@ -1,14 +1,10 @@
 import sys
 import argparse
-print(sys.argv)
-h = float(sys.argv[1])
-
+parser = argparse.ArgumentParser(description="Do Something")
+parser.add_argument("h",type=float,help="Height of the Ball off the ground")
+parser.add_argument("g",type=float,default=9.81,help="Strength of Gravity on target planet")
+args=parser.parse_args()
 def hitTheGround(h,g=9.81):
-    t = (2*g*h)**0.5
+    t = (2*g/h)**0.5
     return t
-
-if len(sys.argv) == 3:
-    g = float(sys.argv[2])
-    print(hitTheGround(h,g=g))
-else:
-    print(hitTheGround(h))
+print(hitTheGround(args.h,g=args.g))
