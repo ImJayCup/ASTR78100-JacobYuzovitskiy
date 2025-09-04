@@ -1,3 +1,9 @@
+"""
+This is a short program to calculate the time it takes a ball to hit the ground when thrown from an input height 'h' and acted upon
+by a force due to gravitational acceleration. Both values are input by the user by running the program from the command line. For help:
+'python HW1-argparse --help'
+"""
+
 import sys
 import argparse
 parser = argparse.ArgumentParser(description="Calculates the time it takes for a ball to hit the ground with a given height and acceleration due to gravity.")
