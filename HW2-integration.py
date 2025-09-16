@@ -32,14 +32,20 @@ def simp(a,b,n: int):
 print(f"Trapezoidal Riemannian Sum: {trap(args.bounds[0],args.bounds[1],args.steps)[0]:.2f}")
 print(f"Integral w/ Simpson's Rule: {simp(args.bounds[0],args.bounds[1],args.steps)[0]:.2f}")
 
-fig = plt.figure(figsize=(2,1))
-axs = fig.subplot_mosaic([["scatter1","scatter2"]])
+fig, axs = plt.subplots(ncols=2,nrows=1)
 
 x = np.linspace(args.bounds[0],args.bounds[1],args.steps)
-axs["scatter1"].set_title(f"Plot of {args.func}")
-axs["scatter1"].scatter(x,[f(i) for i in x])
+axs[0].set_title(f"Trapezoidal Riemannian Sum of {args.func}")
+axs[0].scatter(x,[f(i) for i in x])
 
 stepSize = (args.bounds[1]-args.bounds[0])/args.steps
 for i in range(len(x)-1):
-    axs["scatter1"].add_patch(Polygon([(x[i],0),(x[i],f(x[i])),(x[i+1],f(x[i+1])),(x[i+1],0)],edgecolor='black',facecolor='g'))
+    axs[0].add_patch(Polygon([(x[i],0),(x[i],f(x[i])),(x[i+1],f(x[i+1])),(x[i+1],0)],edgecolor='black',facecolor='g'))
+
+
+axs[1].set_title(f"Simpson Integration of {args.func}")
+axs[1].scatter(x,[f(i) for i in x])
+#FOR LATER IMPLEMENTATION....
+#for i in range(len(x)/3):
+#   axs[1].plot(x[i:i+2],)
 plt.show()
