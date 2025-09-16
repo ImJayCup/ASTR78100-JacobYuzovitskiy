@@ -40,6 +40,6 @@ axs["scatter1"].set_title(f"Plot of {args.func}")
 axs["scatter1"].scatter(x,[f(i) for i in x])
 
 stepSize = (args.bounds[1]-args.bounds[0])/args.steps
-for i in range(args.steps):
-    axs["scatter1"].add_patch(Polygon([(args.bounds[0]+(i)*stepSize,0),(args.bounds[0]+(i)*stepSize,f(args.bounds[0]+(i)*stepSize)),(args.bounds[0]+(i+1)*stepSize,f(args.bounds[0]+(i+1)*stepSize)),(args.bounds[0]+(i+1)*stepSize,0)]))
+for i in range(len(x)-1):
+    axs["scatter1"].add_patch(Polygon([(x[i],0),(x[i],f(x[i])),(x[i+1],f(x[i+1])),(x[i+1],0)],edgecolor='black',facecolor='g'))
 plt.show()
