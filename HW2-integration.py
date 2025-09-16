@@ -1,4 +1,4 @@
-from math import exp
+from math import exp, sin,cos,tan
 import argparse
 from matplotlib import pyplot as plt
 import numpy as np
@@ -38,5 +38,8 @@ axs = fig.subplot_mosaic([["scatter1","scatter2"]])
 x = np.linspace(args.bounds[0],args.bounds[1],args.steps)
 axs["scatter1"].set_title(f"Plot of {args.func}")
 axs["scatter1"].scatter(x,[f(i) for i in x])
-axs["scatter1"].add_patch(Polygon([(0,0),(1,0),(1,1)]))
+
+stepSize = (args.bounds[1]-args.bounds[0])/args.steps
+for i in range(args.steps):
+    axs["scatter1"].add_patch(Polygon([(args.bounds[0]+(i)*stepSize,0),(args.bounds[0]+(i)*stepSize,f(args.bounds[0]+(i)*stepSize)),(args.bounds[0]+(i+1)*stepSize,f(args.bounds[0]+(i+1)*stepSize)),(args.bounds[0]+(i+1)*stepSize,0)]))
 plt.show()
