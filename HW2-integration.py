@@ -2,6 +2,7 @@ from math import exp
 import argparse
 from matplotlib import pyplot as plt
 import numpy as np
+from matplotlib.patches import Ellipse, Polygon
 
 parser = argparse.ArgumentParser(description="Gives Integral of exp(-x**2)")
 parser.add_argument("--func",type=str,default='exp(-x**2)',help="Desired Integrand as a function of x.")
@@ -31,9 +32,11 @@ def simp(a,b,n: int):
 print(f"Trapezoidal Riemannian Sum: {trap(args.bounds[0],args.bounds[1],args.steps)[0]:.2f}")
 print(f"Integral w/ Simpson's Rule: {simp(args.bounds[0],args.bounds[1],args.steps)[0]:.2f}")
 
-plt.figure(figsize=(2,1))
-plt.title(f"Plot of {args.func}")
+fig = plt.figure(figsize=(2,1))
+axs = fig.subplot_mosaic([["scatter1","scatter2"]])
 
 x = np.linspace(args.bounds[0],args.bounds[1],args.steps)
-plt.scatter(x,[f(i) for i in x])
+axs["scatter1"].set_title(f"Plot of {args.func}")
+axs["scatter1"].scatter(x,[f(i) for i in x])
+axs["scatter1"].add_patch(Polygon([(0,0),(1,0),(1,1)]))
 plt.show()
