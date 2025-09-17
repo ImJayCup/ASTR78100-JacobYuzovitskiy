@@ -3,7 +3,6 @@ import argparse
 from matplotlib import pyplot as plt
 import numpy as np
 from matplotlib.patches import Ellipse, Polygon
-from scipy.interpolate import lagrange
 
 parser = argparse.ArgumentParser(description="Gives Integral of exp(-x**2)")
 parser.add_argument("--func",type=str,default='exp(-x**2)',help="Desired Integrand as a function of x.")
@@ -37,16 +36,16 @@ fig, axs = plt.subplots(ncols=2,nrows=1)
 fig.suptitle(f"Trapezoidal Integral: {trap(args.bounds[0],args.bounds[1],args.steps)[0]:.2f}. Simpson: {simp(args.bounds[0],args.bounds[1],args.steps)[0]:.2f}")
 
 x = np.linspace(args.bounds[0],args.bounds[1],args.steps)
-axs[0].set_title(f"Trapezoidal Riemannian Sum of {args.func}")
+axs[0].set_title(f"Trapezoidal Area")
 axs[0].scatter(x,[f(i) for i in x])
 
 stepSize = (args.bounds[1]-args.bounds[0])/args.steps
 for i in range(len(x)-1):
     axs[0].add_patch(Polygon([(x[i],0),(x[i],f(x[i])),(x[i+1],f(x[i+1])),(x[i+1],0)],edgecolor='black',facecolor='g'))
 
-
+x = np.linspace(args.bounds[0],args.bounds[1],args.steps*10)
 axs[1].set_title(f"{args.func}")
-axs[1].scatter(x,[f(i) for i in x])
+axs[1].plot(x,[f(i) for i in x])
 
 #for i in range(len(x)-1):
 plt.show()
