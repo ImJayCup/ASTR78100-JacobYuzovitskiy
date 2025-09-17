@@ -3,6 +3,7 @@ import argparse
 from matplotlib import pyplot as plt
 import numpy as np
 from matplotlib.patches import Ellipse, Polygon
+from scipy.interpolate import lagrange
 
 parser = argparse.ArgumentParser(description="Gives Integral of exp(-x**2)")
 parser.add_argument("--func",type=str,default='exp(-x**2)',help="Desired Integrand as a function of x.")
@@ -33,6 +34,7 @@ print(f"Trapezoidal Riemannian Sum: {trap(args.bounds[0],args.bounds[1],args.ste
 print(f"Integral w/ Simpson's Rule: {simp(args.bounds[0],args.bounds[1],args.steps)[0]:.2f}")
 
 fig, axs = plt.subplots(ncols=2,nrows=1)
+fig.suptitle(f"Trapezoidal Integral: {trap(args.bounds[0],args.bounds[1],args.steps)[0]:.2f}. Simpson: {simp(args.bounds[0],args.bounds[1],args.steps)[0]:.2f}")
 
 x = np.linspace(args.bounds[0],args.bounds[1],args.steps)
 axs[0].set_title(f"Trapezoidal Riemannian Sum of {args.func}")
@@ -43,9 +45,8 @@ for i in range(len(x)-1):
     axs[0].add_patch(Polygon([(x[i],0),(x[i],f(x[i])),(x[i+1],f(x[i+1])),(x[i+1],0)],edgecolor='black',facecolor='g'))
 
 
-axs[1].set_title(f"Simpson Integration of {args.func}")
+axs[1].set_title(f"{args.func}")
 axs[1].scatter(x,[f(i) for i in x])
-#FOR LATER IMPLEMENTATION....
-#for i in range(len(x)/3):
-#   axs[1].plot(x[i:i+2],)
+
+#for i in range(len(x)-1):
 plt.show()
