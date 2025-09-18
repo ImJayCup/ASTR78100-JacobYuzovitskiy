@@ -4,10 +4,10 @@ from matplotlib import pyplot as plt
 import numpy as np
 from matplotlib.patches import Ellipse, Polygon
 
-parser = argparse.ArgumentParser(description="Gives Integral of exp(-x**2)")
-parser.add_argument("--func",type=str,default='exp(-x**2)',help="Desired Integrand as a function of x.")
-parser.add_argument("--bounds",type=float,nargs=2,default=[0,3],help="Desired bounds of Integration as a list. Ex: [0,3].")
-parser.add_argument("--steps",type=int,default=30,help="Desired number of steps. Ex: 30 steps from 0 to 3 is 0.1 steps size.")
+parser = argparse.ArgumentParser(description="Gives Integral of desired function using Trapezoid rule and Simpson's rule. Can include exp,sin,cos,tan.")
+parser.add_argument("--func",type=str,default='exp(-x**2)',help="Desired Integrand as a function of x. Please input as a string with quotation marks.")
+parser.add_argument("--bounds",type=float,nargs=2,default=[0,3],help="Desired bounds of Integration as a list. Ex: 0,3.")
+parser.add_argument("--steps",type=int,default=30,help="Desired number of steps. Ex: 30 steps from 0 to 3 is 0.1 step size.")
 args=parser.parse_args()
 
 def f(x):
