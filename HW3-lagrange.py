@@ -3,6 +3,9 @@
 
 from astropy import constants
 from astropy import units as u
+from matplotlib import pyplot as plt
+from matplotlib.patches import Ellipse,Circle
+plt.rcParams['hatch.color'] = 'green'
 
 R = 3.844e8 * u.meter
 m_moon = 7.348e22 * u.kilogram
@@ -42,3 +45,13 @@ def newton_r(r0, max_iter=50, tol=1e-9*u.meter):
 r0 = 3.2e8 * u.meter
 root = newton_r(r0)
 print(root)
+
+fig,axs = plt.subplots(ncols=1,nrows=1)
+axs.set_aspect(1.0)
+axs.set_facecolor("black")
+axs.add_patch(Ellipse((0,0),12756*1000,12756*1000,hatch="*"))
+axs.add_patch(Ellipse((R.value,0),3474.8*1000,3474.8*1000,color="grey"))
+axs.add_patch(Circle((0,0),root.value,fill=False,ec="white",lw=1,ls="--"))
+axs.set_xlim([0,R.value])
+axs.set_ylim([-R.value/2,R.value/2])
+plt.show()
