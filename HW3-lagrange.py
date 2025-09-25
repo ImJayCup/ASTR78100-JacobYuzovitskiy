@@ -4,12 +4,17 @@
 from astropy import constants
 from astropy import units as u
 from matplotlib import pyplot as plt
+from math import cos, pi
 from matplotlib.patches import Ellipse,Circle
 plt.rcParams['hatch.color'] = 'green'
 
 R = 3.844e8 * u.meter
 m_moon = 7.348e22 * u.kilogram
 omega = 2.662e-6 / u.second
+
+### earth moon distance is modeled by d(t) = R*(1-0.0549*cos(2*pi*t/27.32))
+def moonDist(t):
+    return R*(1-0.0549*cos(2*pi*t/27.32))
 
 def P(r):
     return (constants.G*constants.M_earth)/(r**2) \
@@ -49,6 +54,7 @@ print(root)
 fig,axs = plt.subplots(ncols=1,nrows=1)
 axs.set_aspect(1.0)
 axs.set_facecolor("black")
+axs.add_patch(Ellipse((0,0),R.value*2,383800000*2,fill=False,ec="yellow",lw=0.5))
 axs.add_patch(Ellipse((0,0),12756*1000,12756*1000,hatch="*"))
 axs.add_patch(Ellipse((R.value,0),3474.8*1000,3474.8*1000,color="grey"))
 axs.add_patch(Circle((0,0),root.value,fill=False,ec="white",lw=1,ls="--"))
