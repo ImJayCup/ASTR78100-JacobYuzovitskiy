@@ -24,6 +24,13 @@ dt = x_uniform[1] - x_uniform[0]  # Assuming uniform spacing
 fft_result = np.fft.fft(y_uniform)
 frequencies = np.fft.fftfreq(N, dt)
 
+# Rebuild signal from first 10 Fourier components
+reconstructed_signal = np.zeros_like(y_uniform).astype('complex128')
+for i in range(1, 11):
+    reconstructed_signal += (fft_result[i] * np.exp(2j * np.pi * frequencies[i] * x_uniform / N) +
+                             fft_result[-i] * np.exp(-2j * np.pi * frequencies[i] * x_uniform / N)) / N
+reconstructed_signal = reconstructed_signal.real  # Take the real part
+
 # Removing the 0.0 frequency component
 fft_result[0] = 0
 fig, axs = plt.subplots(4, 1, figsize=(10, 8))  # no sharex
@@ -41,7 +48,8 @@ axs[1].legend()
 axs[2].plot(frequencies[:N//2], np.abs(fft_result)[:N//2])
 axs[2].set_xlabel('Frequency')
 
+# plot reconstructed signal
+axs[3].plot(x_uniform, reconstructed_signal, '-', label='Reconstructed Signal')
+
 plt.tight_layout()
 plt.show()
-
-
