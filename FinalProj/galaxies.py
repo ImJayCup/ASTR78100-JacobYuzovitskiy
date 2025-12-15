@@ -1,23 +1,15 @@
+from networkx import radius
 import numpy as np
 import matplotlib.pyplot as plt
 import io
 import imageio.v2 as imageio
 import math  # for erf, exp, sqrt, pi
 
-# --- dynamical friction parameters ---
-RHO_DF = 0.05      # background density (arbitrary units)
-SIGMA_DF = 0.7     # velocity dispersion of background
-LN_LAMBDA = 3.0    # Coulomb logarithm
-
-# --- extra velocity damping (per unit time) ---
-NU_DAMP = 0.03     # try 0.02–0.05 and tune
-
-
 # Random RNG
 rng = np.random.default_rng(0)
 
 G = 1.0          # Gravitational constant (scaled)
-EPS = 1e-3       # Softening to avoid singularities
+EPS = 10      # Softening 
 
 
 # ----------------- BASIC STAR + TREE (Barnes–Hut) ----------------- #
@@ -172,40 +164,23 @@ class Tree:
 
     def force_on(self, star, G=G, eps=EPS):
         return self.root.force_on(star, self.theta, G, eps)
-    
-def chandra_df_accel(M, v_vec, rho=RHO_DF, sigma=SIGMA_DF, lnΛ=LN_LAMBDA):
-    """
-    Chandrasekhar dynamical friction acceleration on a massive object of mass M
-    moving with velocity v_vec through a background of density rho and velocity
-    dispersion sigma.
 
-    Returns a vector a_df with the same shape as v_vec.
-    """
-    V = np.linalg.norm(v_vec)
-    if V < 1e-8:
-        return np.zeros(2)
-
-    X = V / (math.sqrt(2.0) * sigma)
-    # Dimensionless factor [erf(X) - 2X e^{-X^2} / sqrt(pi)]
-    f_X = math.erf(X) - (2.0 * X / math.sqrt(math.pi)) * math.exp(-X * X)
-
-    # Chandrasekhar formula: a_df ∝ -v / V^3
-    coeff = -4.0 * math.pi * (G ** 2) * M * rho * lnΛ * f_X / (V ** 3)
-    return coeff * v_vec
-
-
-def step_barnes_hut(stars, dt=0.01, theta=0.5, G=G, eps=EPS):
+def step_leapfrog(stars, dt, theta=0.5, G=G, eps=EPS):
+    # kick (half)
     tree = Tree(stars, theta=theta)
+    acc = [tree.force_on(s, G=G, eps=eps) / s.mass for s in stars]
+    for s, a in zip(stars, acc):
+        s.vel += 0.5 * dt * a
 
-    forces = []
+    # drift
     for s in stars:
-        f = tree.force_on(s, G=G, eps=eps)
-        forces.append(f)
+        s.pos += dt * s.vel
 
-    for s, f in zip(stars, forces):
-        a = f / s.mass
-        s.vel += a * dt
-        s.pos += s.vel * dt
+    # kick (half) with new forces
+    tree = Tree(stars, theta=theta)
+    acc2 = [tree.force_on(s, G=G, eps=eps) / s.mass for s in stars]
+    for s, a in zip(stars, acc2):
+        s.vel += 0.5 * dt * a
 
 # ----------------- SPIRAL GALAXY INITIAL CONDITIONS ----------------- #
 
@@ -215,32 +190,47 @@ def make_spiral_galaxy(
     com_velocity=np.array([0.0, 0.0]),
     radius=1.0,
     rot_dir=1,
+    n_arms=2,
+    arm_spread=0.25,   # radians: smaller = thinner arms
+    pitch=4.0,         # bigger = more winding
+    Rd=None            # disk scale length
 ):
     stars = []
-    # use a smaller effective mass – this just sets the rotation curve
-    M_gal = 10.0          # instead of n_stars
-    V_SCALE = 1         # scale factor for rotation speed
+    if Rd is None:
+        Rd = radius / 3.0
 
-    for i in range(n_stars):
-        r = radius * np.sqrt(rng.random())
-        phi = 2.0 * np.pi * rng.random()
-        twist = 6.0 * r
-        phi_spiral = phi + rot_dir * twist
+    M_gal = 200.0      # tune this
+    core = 5.0         # avoid huge speeds at center
 
-        x = r * np.cos(phi_spiral)
-        y = r * np.sin(phi_spiral)
-        pos = np.array([x, y]) + center
+    for _ in range(n_stars):
+        # Exponential disk-ish radius (clipped)
+        u = rng.random()
+        r = -Rd * np.log(1 - u)
+        r = min(r, radius)
 
-        # much gentler circular velocity
-        v_circ = V_SCALE * np.sqrt(G * M_gal / (r + 0.3))
-        tan = rot_dir * np.array([-np.sin(phi_spiral), np.cos(phi_spiral)])
-        vel = v_circ * tan + com_velocity
+        # Pick which arm, then place star near that arm
+        arm = rng.integers(0, n_arms)
+        base = 2*np.pi * arm / n_arms
 
-        vel += 0.05 * rng.normal(size=2)
+        # Log-spiral angle: phi ~ base + pitch * ln(r)
+        phi = base + rot_dir * pitch * np.log((r + core) / core)
+        phi += rng.normal(scale=arm_spread)
 
-        stars.append(Star(pos=pos, vel=vel, mass=1.0))
+        pos = center + np.array([r*np.cos(phi), r*np.sin(phi)])
+
+        # Simple circular-ish velocity around center
+        v_circ = np.sqrt(G * M_gal / (r + core))
+        tang = rot_dir * np.array([-np.sin(phi), np.cos(phi)])
+        vel = com_velocity + v_circ * tang
+
+        # small random dispersion
+        sigma = 0.2*v_circ
+        vel += sigma * rng.normal(size=2)
+
+        stars.append(Star(pos=pos, vel=vel, mass=M_gal/n_stars))
 
     return stars
+
 
 
 
@@ -248,11 +238,11 @@ def make_spiral_galaxy(
 
 if __name__ == "__main__":
     # Number of stars per galaxy
-    N_PER_GAL = 100
+    N_PER_GAL = 50
 
     # Galaxy separation and approach velocity
-    offset = 600.0
-    v_approach = 0.1
+    offset = 1000
+    v_approach = 0.5
 
     # Galaxy 1: left, moving right
     gal1_center = np.array([-offset, 0.0])
@@ -261,7 +251,7 @@ if __name__ == "__main__":
         N_PER_GAL,
         center=gal1_center,
         com_velocity=gal1_vel,
-        radius=500,
+        radius=1000,
         rot_dir=+1,
     )
 
@@ -272,7 +262,7 @@ if __name__ == "__main__":
         N_PER_GAL,
         center=gal2_center,
         com_velocity=gal2_vel,
-        radius=500,
+        radius=1000,
         rot_dir=-1,
     )
 
@@ -280,9 +270,9 @@ if __name__ == "__main__":
     N_TOTAL = len(stars)
 
     # Simulation parameters
-    dt = 0.5
-    n_steps = 2000
-    theta = 0.5
+    dt = 0.05
+    n_steps = 80000
+    theta = 0.2
 
     print(f"Simulating {N_TOTAL} stars for {n_steps} steps...")
 
@@ -291,7 +281,7 @@ if __name__ == "__main__":
     FRAME_STRIDE = 10   # save every 10th step
 
     for t in range(n_steps):
-        step_barnes_hut(stars, dt=dt, theta=theta)
+        step_leapfrog(stars, dt=dt, theta=theta)
 
         if t % FRAME_STRIDE == 0:
             xs = np.array([s.pos[0] for s in stars])
