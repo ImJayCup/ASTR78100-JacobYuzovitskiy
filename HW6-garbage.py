@@ -37,7 +37,7 @@ def f(s, t):
     r2 = dx*dx + dy*dy + dz*dz
     r3 = (r2 + 1e-6)**1.5
 
-    # F 2on1
+    # F 2on1 (just solving newton's law)
     ax12 =  G*m2*dx / r3
     ay12 =  G*m2*dy / r3
     az12 =  G*m2*dz / r3

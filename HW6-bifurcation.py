@@ -41,7 +41,7 @@ def rk4_step(s, h, m1, m2):
     k4 = h*f(s+k3,     m1, m2)
     return s + (k1+2*k2+2*k3+k4)/6
 
-def escape_time(m1, m2, T_max=20.0, n_steps=6000, R_esc=5.0):
+def escape_time(m1, m2, T_max=40.0, n_steps=6000, R_esc=5.0):
     h = T_max/n_steps
     s = np.array([
         1.0, 0.0,  0.2,  1.1,  0.0, 0.2,    # ball 1
@@ -56,7 +56,7 @@ def escape_time(m1, m2, T_max=20.0, n_steps=6000, R_esc=5.0):
         t += h
     return T_max   # “no escape” within T_max
 
-ratios = np.linspace(0.1, 10.0, 400)
+ratios = np.linspace(2, 4.5, 3200)
 times = []
 
 for r in ratios:
