@@ -1,9 +1,24 @@
-from networkx import radius
 import numpy as np
 import matplotlib.pyplot as plt
 import io
 import imageio.v2 as imageio
 import math  # for erf, exp, sqrt, pi
+
+# ---- pretty plotting defaults ----
+plt.style.use("dark_background")
+plt.rcParams.update({
+    "figure.facecolor": "#05060a",
+    "axes.facecolor":   "#05060a",
+    "savefig.facecolor":"#05060a",
+    "axes.edgecolor":   "#cfd3ff",
+    "axes.labelcolor":  "#e6e6e6",
+    "xtick.color":      "#cfd3ff",
+    "ytick.color":      "#cfd3ff",
+    "grid.color":       "#cfd3ff",
+    "grid.alpha":       0.10,
+    "axes.grid":        True,
+})
+STAR_MARKER = (5, 1)   # 5-point "star" marker
 
 # ----------------- PHYSICAL UNITS  -----------------
 
@@ -60,6 +75,8 @@ class Star:
 class Tree:
     """
     Barnes–Hut quadtree in 2D.
+    Instance of Tree() contains Node() which contain Star()
+    
     """
 
     def __init__(self, stars, theta=0.5):
@@ -234,14 +251,14 @@ def make_spiral_galaxy(
     rot_dir=1,
     n_arms=2,
     arm_spread=0.25,   # radians: smaller = thinner arms
-    pitch=4.0,         # bigger = more winding
+    pitch=2.0,         # bigger = more winding
     Rd=None            # disk scale length
 ):
     
     ### Concentration of central disk. Higher Rd spreads the galaxy out more
     stars = []
     if Rd is None:
-        Rd = radius / 2.75
+        Rd = radius / 2.2
 
     M_gal = 200.0      # total "mass"
     core = 5.0         
@@ -284,19 +301,19 @@ def make_spiral_galaxy(
 if __name__ == "__main__":
     
     #Number of stars per galaxy, Galaxy radii
-    N_GAL1= 100
-    N_GAL2= 100
+    N_GAL1= 50
+    N_GAL2= 50
     GAL1_RAD = 1000
     GAL2_RAD = 1000
 
     #Timestep, number of steps, opening angle
-    dt = 0.25
+    dt = 0.5
     n_steps = 4000
-    theta = 0.5
+    theta = 1
 
     # Galaxy separation and approach velocity
     offset = 1000
-    v_approach = 0.5
+    v_approach = 0.25
 
     # Galaxy 1: left, moving right
     gal1_center = np.array([-offset, 0.0])
@@ -326,6 +343,7 @@ if __name__ == "__main__":
     print(f"Simulating {N_TOTAL} stars for {n_steps} steps...")
 
     # Evolve system
+    split = len(gal1)          # works even if N_GAL1 != N_GAL2
     FRAME_STRIDE = 10
 
     with imageio.get_writer("galaxy_merge.gif", mode="I", fps=20) as writer:
@@ -333,33 +351,68 @@ if __name__ == "__main__":
             step_leapfrog(stars, dt=dt, theta=theta)
 
             if t % FRAME_STRIDE == 0:
+                # time in Myr
+                t_myr = to_myr(t * dt)
+
+                # positions in code units
                 xs = np.array([s.pos[0] for s in stars])
                 ys = np.array([s.pos[1] for s in stars])
 
-                xs1, ys1 = xs[:N_GAL1], ys[:N_GAL1]
-                xs2, ys2 = xs[N_GAL1:], ys[N_GAL1:]   # <-- use N_GAL1 as the split index
+                # split by galaxy
+                xs1, ys1 = xs[:split], ys[:split]
+                xs2, ys2 = xs[split:], ys[split:]
 
-                fig, ax = plt.subplots(figsize=(6, 6))
-                ax.scatter(xs1, ys1, s=1, alpha=0.7)
-                ax.scatter(xs2, ys2, s=1, alpha=0.7)
+                # convert to kpc for plotting
+                xs1_kpc, ys1_kpc = to_kpc(xs1), to_kpc(ys1)
+                xs2_kpc, ys2_kpc = to_kpc(xs2), to_kpc(ys2)
 
-                ax.set_xlim(-offset*2.5, offset*2.5)
-                ax.set_ylim(-offset*2.5, offset*2.5)
+                fig, ax = plt.subplots(figsize=(6, 6), facecolor=plt.rcParams["figure.facecolor"])
+                ax.set_facecolor(plt.rcParams["axes.facecolor"])
+
+                # --- glow layer (same points, bigger + more transparent) ---
+                ax.scatter(xs1_kpc, ys1_kpc, s=30, marker=STAR_MARKER, alpha=0.08, linewidths=0)
+                ax.scatter(xs2_kpc, ys2_kpc, s=30, marker=STAR_MARKER, alpha=0.08, linewidths=0)
+
+                # --- sharp layer ---
+                ax.scatter(xs1_kpc, ys1_kpc, s=10, marker=STAR_MARKER, alpha=0.9, linewidths=0)
+                ax.scatter(xs2_kpc, ys2_kpc, s=10, marker=STAR_MARKER, alpha=0.9, linewidths=0)
+
+                lim = to_kpc(offset * 2.5)
+                ax.set_xlim(-lim, lim)
+                ax.set_ylim(-lim, lim)
                 ax.set_aspect("equal", "box")
-                ax.set_title(f"t = {t}")
-                ax.set_xlabel("x")
-                ax.set_ylabel("y")
+
+                ax.set_title(f"Galaxy merger  •  t = {t_myr:.2f} Myr", pad=10)
+                ax.set_xlabel("x [kpc]")
+                ax.set_ylabel("y [kpc]")
+
+                # subtle grid + clean spines
+                ax.grid(True, which="major")
+                for spine in ax.spines.values():
+                    spine.set_alpha(0.25)
+
+                # optional: small watermark-like units box
+                ax.text(0.02, 0.98, "Units: kpc, Myr",
+                        transform=ax.transAxes, va="top", ha="left",
+                        fontsize=9, alpha=0.7)
 
                 buf = io.BytesIO()
-                fig.savefig(buf, format="png", dpi=100)
+                fig.savefig(
+                    buf,
+                    format="png",
+                    dpi=120,
+                    bbox_inches="tight",
+                    pad_inches=0.05,
+                    facecolor=fig.get_facecolor(),   # IMPORTANT for dark background in saved PNG
+                )
                 buf.seek(0)
-                frame = imageio.imread(buf)
+                writer.append_data(imageio.imread(buf))
                 buf.close()
                 plt.close(fig)
 
-                writer.append_data(frame)
 
     print("Saved galaxy_merge.gif")
+
 
 
 
@@ -389,6 +442,8 @@ if __name__ == "__main__":
     ax.set_title(f"t = {t_myr:.2f} Myr")
     ax.set_xlabel("x [kpc]")
     ax.set_ylabel("y [kpc]")
+
+    plt.show()
 
     
 
