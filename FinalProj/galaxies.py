@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use("Agg")  # fast off-screen rendering for GIFs
 import io
 import imageio.v2 as imageio
 import math  # for erf, exp, sqrt, pi
@@ -76,7 +78,7 @@ class Tree:
     """
     Barnes–Hut quadtree in 2D.
     Instance of Tree() contains Node() which contain Star()
-    
+
     """
 
     def __init__(self, stars, theta=0.5):
@@ -260,7 +262,7 @@ def make_spiral_galaxy(
     if Rd is None:
         Rd = radius / 2.2
 
-    M_gal = 200.0      # total "mass"
+    M_gal = 400.0      # total "mass"
     core = 5.0         
 
     ### Samples uniform distribution, then applies logarithmic transform to create spirals
@@ -301,19 +303,19 @@ def make_spiral_galaxy(
 if __name__ == "__main__":
     
     #Number of stars per galaxy, Galaxy radii
-    N_GAL1= 50
-    N_GAL2= 50
-    GAL1_RAD = 1000
-    GAL2_RAD = 1000
+    N_GAL1= 400
+    N_GAL2= 400
+    GAL1_RAD = 2000
+    GAL2_RAD = 2000
 
     #Timestep, number of steps, opening angle
-    dt = 0.5
-    n_steps = 4000
+    dt = 0.1
+    n_steps = 16000
     theta = 1
 
     # Galaxy separation and approach velocity
-    offset = 1000
-    v_approach = 0.25
+    offset = 3000
+    v_approach = 0.5
 
     # Galaxy 1: left, moving right
     gal1_center = np.array([-offset, 0.0])
@@ -346,75 +348,83 @@ if __name__ == "__main__":
     split = len(gal1)          # works even if N_GAL1 != N_GAL2
     FRAME_STRIDE = 10
 
+    '''
+    import time
+    start = time.time()
+    for t in range(n_steps):
+            step_leapfrog(stars, dt=dt, theta=theta)
+    end = time.time()
+    print("The Time to Run is: ")
+    print(end-start)
+    '''
+
+    split = len(gal1)
+    FRAME_STRIDE = 10
+
+    # --- one-time figure setup ---
+    plt.style.use("dark_background")
+    STAR_MARKER = (5, 1)  # 5-point star
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.set_facecolor("#05060a")
+    fig.patch.set_facecolor("#05060a")
+
+    lim = to_kpc(offset * 2.5)
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(-lim, lim)
+    ax.set_aspect("equal", "box")
+    ax.set_xlabel("x [kpc]")
+    ax.set_ylabel("y [kpc]")
+
+    # Create artists ONCE (empty at start)
+    sc1_glow = ax.scatter([], [], s=30, marker=STAR_MARKER, alpha=0.08, linewidths=0)
+    sc2_glow = ax.scatter([], [], s=30, marker=STAR_MARKER, alpha=0.08, linewidths=0)
+    sc1      = ax.scatter([], [], s=10, marker=STAR_MARKER, alpha=0.9,  linewidths=0)
+    sc2      = ax.scatter([], [], s=10, marker=STAR_MARKER, alpha=0.9,  linewidths=0)
+
+    ax.grid(True, alpha=0.10)
+    for spine in ax.spines.values():
+        spine.set_alpha(0.25)
+
+    import time
+    start = time.time()
     with imageio.get_writer("galaxy_merge.gif", mode="I", fps=20) as writer:
         for t in range(n_steps):
             step_leapfrog(stars, dt=dt, theta=theta)
 
             if t % FRAME_STRIDE == 0:
-                # time in Myr
                 t_myr = to_myr(t * dt)
 
-                # positions in code units
-                xs = np.array([s.pos[0] for s in stars])
-                ys = np.array([s.pos[1] for s in stars])
+                xs = np.fromiter((s.pos[0] for s in stars), dtype=float, count=len(stars))
+                ys = np.fromiter((s.pos[1] for s in stars), dtype=float, count=len(stars))
 
-                # split by galaxy
                 xs1, ys1 = xs[:split], ys[:split]
                 xs2, ys2 = xs[split:], ys[split:]
 
-                # convert to kpc for plotting
-                xs1_kpc, ys1_kpc = to_kpc(xs1), to_kpc(ys1)
-                xs2_kpc, ys2_kpc = to_kpc(xs2), to_kpc(ys2)
+                # convert to kpc
+                p1 = np.column_stack((to_kpc(xs1), to_kpc(ys1)))
+                p2 = np.column_stack((to_kpc(xs2), to_kpc(ys2)))
 
-                fig, ax = plt.subplots(figsize=(6, 6), facecolor=plt.rcParams["figure.facecolor"])
-                ax.set_facecolor(plt.rcParams["axes.facecolor"])
-
-                # --- glow layer (same points, bigger + more transparent) ---
-                ax.scatter(xs1_kpc, ys1_kpc, s=30, marker=STAR_MARKER, alpha=0.08, linewidths=0)
-                ax.scatter(xs2_kpc, ys2_kpc, s=30, marker=STAR_MARKER, alpha=0.08, linewidths=0)
-
-                # --- sharp layer ---
-                ax.scatter(xs1_kpc, ys1_kpc, s=10, marker=STAR_MARKER, alpha=0.9, linewidths=0)
-                ax.scatter(xs2_kpc, ys2_kpc, s=10, marker=STAR_MARKER, alpha=0.9, linewidths=0)
-
-                lim = to_kpc(offset * 2.5)
-                ax.set_xlim(-lim, lim)
-                ax.set_ylim(-lim, lim)
-                ax.set_aspect("equal", "box")
+                # update artist data (fast)
+                sc1_glow.set_offsets(p1)
+                sc2_glow.set_offsets(p2)
+                sc1.set_offsets(p1)
+                sc2.set_offsets(p2)
 
                 ax.set_title(f"Galaxy merger  •  t = {t_myr:.2f} Myr", pad=10)
-                ax.set_xlabel("x [kpc]")
-                ax.set_ylabel("y [kpc]")
 
-                # subtle grid + clean spines
-                ax.grid(True, which="major")
-                for spine in ax.spines.values():
-                    spine.set_alpha(0.25)
+                # render to an array (no PNG roundtrip)
+                fig.canvas.draw()
+                w, h = fig.canvas.get_width_height()
+                frame = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8).reshape(h, w, 3)
 
-                # optional: small watermark-like units box
-                ax.text(0.02, 0.98, "Units: kpc, Myr",
-                        transform=ax.transAxes, va="top", ha="left",
-                        fontsize=9, alpha=0.7)
+                writer.append_data(frame)
 
-                buf = io.BytesIO()
-                fig.savefig(
-                    buf,
-                    format="png",
-                    dpi=120,
-                    bbox_inches="tight",
-                    pad_inches=0.05,
-                    facecolor=fig.get_facecolor(),   # IMPORTANT for dark background in saved PNG
-                )
-                buf.seek(0)
-                writer.append_data(imageio.imread(buf))
-                buf.close()
-                plt.close(fig)
-
-
+    plt.close(fig)
     print("Saved galaxy_merge.gif")
-
-
-
+    end = time.time()
+    print(f"Compile time is {end-start}")
+    
 
 
     # ----------------- PLOT FINAL STATE ----------------- #
