@@ -75,6 +75,9 @@ class Tree:
             self.is_leaf = True
 
         def _update_com(self, new_star):
+
+            ### Update function for the center of mass of a node
+            ### Every time you insert a star into a node, run _update_com()
             if self.mass == 0.0:
                 self.mass = new_star.mass
                 self.com = new_star.pos.copy()
@@ -84,6 +87,9 @@ class Tree:
                 self.mass = total_mass
 
         def _subdivide(self):
+
+            ### Subdivides a node into four child nodes 
+
             x0, x1 = self.xlim
             y0, y1 = self.ylim
             xm = 0.5 * (x0 + x1)
@@ -98,6 +104,10 @@ class Tree:
             self.is_leaf = False
 
         def _which_child(self, pos):
+
+            ### This is just a function that returns the quadrant a star is in based on position. Important for
+            ### inserting stars in the right node.
+
             x0, x1 = self.xlim
             y0, y1 = self.ylim
             xm = 0.5 * (x0 + x1)
@@ -134,6 +144,12 @@ class Tree:
                 self.children[idx].insert(star)
 
         def force_on(self, star, theta, G, eps):
+            ### This is the meat and potatoes: calculates the force of a target node on self_node
+            ### checks to make sure the target node (a) contains a star and (b) isn't the self_node
+            ### Then checks for distance:
+            ###     If a node is far away, uses the Barnes-Hut approximation and calculates the force as a point mass
+            ###     Else, recurses to subdivisions until either reaching an individual star or finding a faraway node
+
             # Empty node
             if self.mass == 0.0:
                 return np.zeros(2)
@@ -166,6 +182,9 @@ class Tree:
         return self.root.force_on(star, self.theta, G, eps)
 
 def step_leapfrog(stars, dt, theta=0.5, G=G, eps=EPS):
+    ### Solves the second-order system dx/dt = v, dv/dt = a
+    ### Uses leap-frog integration, since stellar interactions are often periodic
+
     # kick (half)
     tree = Tree(stars, theta=theta)
     acc = [tree.force_on(s, G=G, eps=eps) / s.mass for s in stars]
@@ -195,13 +214,16 @@ def make_spiral_galaxy(
     pitch=4.0,         # bigger = more winding
     Rd=None            # disk scale length
 ):
+    
+    ### Concentration of central disk. Higher Rd spreads the galaxy out more
     stars = []
     if Rd is None:
-        Rd = radius / 3.0
+        Rd = radius / 2.75
 
-    M_gal = 200.0      # tune this
-    core = 5.0         # avoid huge speeds at center
+    M_gal = 200.0      # total "mass"
+    core = 5.0         
 
+    ### Samples uniform distribution, then applies logarithmic transform to create spirals
     for _ in range(n_stars):
         # Exponential disk-ish radius (clipped)
         u = rng.random()
@@ -238,7 +260,7 @@ def make_spiral_galaxy(
 
 if __name__ == "__main__":
     # Number of stars per galaxy
-    N_PER_GAL = 50
+    N_PER_GAL = 100
 
     # Galaxy separation and approach velocity
     offset = 1000
@@ -271,7 +293,7 @@ if __name__ == "__main__":
 
     # Simulation parameters
     dt = 0.05
-    n_steps = 80000
+    n_steps = 12000
     theta = 0.2
 
     print(f"Simulating {N_TOTAL} stars for {n_steps} steps...")
