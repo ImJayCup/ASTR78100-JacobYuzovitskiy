@@ -5,6 +5,34 @@ import io
 import imageio.v2 as imageio
 import math  # for erf, exp, sqrt, pi
 
+# ----------------- PHYSICAL UNITS  -----------------
+
+G_SI = 6.67430e-11          # m^3 kg^-1 s^-2
+PC   = 3.085677581e16       # m
+KPC  = 1e3 * PC
+MSUN = 1.98847e30           # kg
+MYR  = 1e6 * 365.25 * 24 * 3600  # s
+
+# Choose the scaling:
+L_UNIT = 10 * PC            # 1 code length = 10 pc  -> 1000 = 10 kpc
+M_UNIT = 1e8 * MSUN         # 1 code mass  = 1e8 Msun -> M_gal=200 => 2e10 Msun
+
+# Derive the time unit so that G_code=1 matches physical gravity:
+T_UNIT = math.sqrt(L_UNIT**3 / (G_SI * M_UNIT))  # seconds
+V_UNIT = L_UNIT / T_UNIT                          # m/s
+
+def to_kpc(x_code):  # works on scalars or numpy arrays
+    return x_code * (L_UNIT / KPC)
+
+def to_myr(t_code):
+    return t_code * (T_UNIT / MYR)
+
+def to_kms(v_code):
+    return v_code * (V_UNIT / 1e3)
+
+print(f"[Units] 1L = {L_UNIT/PC:.0f} pc, 1M = {M_UNIT/MSUN:.1e} Msun, "
+      f"1T = {T_UNIT/MYR:.4f} Myr, 1V = {V_UNIT/1e3:.1f} km/s")
+
 # Random RNG
 rng = np.random.default_rng(0)
 
@@ -76,7 +104,7 @@ class Tree:
 
         def _update_com(self, new_star):
 
-            ### Update function for the center of mass of a node
+            ### Update function for mass of a node
             ### Every time you insert a star into a node, run _update_com()
             if self.mass == 0.0:
                 self.mass = new_star.mass
@@ -144,11 +172,6 @@ class Tree:
                 self.children[idx].insert(star)
 
         def force_on(self, star, theta, G, eps):
-            ### This is the meat and potatoes: calculates the force of a target node on self_node
-            ### checks to make sure the target node (a) contains a star and (b) isn't the self_node
-            ### Then checks for distance:
-            ###     If a node is far away, uses the Barnes-Hut approximation and calculates the force as a point mass
-            ###     Else, recurses to subdivisions until either reaching an individual star or finding a faraway node
 
             # Empty node
             if self.mass == 0.0:
@@ -183,7 +206,7 @@ class Tree:
 
 def step_leapfrog(stars, dt, theta=0.5, G=G, eps=EPS):
     ### Solves the second-order system dx/dt = v, dv/dt = a
-    ### Uses leap-frog integration, since stellar interactions are often periodic
+    ### leap-frog integration instead of Euler
 
     # kick (half)
     tree = Tree(stars, theta=theta)
@@ -259,8 +282,17 @@ def make_spiral_galaxy(
 # ----------------- MAIN: TWO GALAXIES MERGING ----------------- #
 
 if __name__ == "__main__":
-    # Number of stars per galaxy
-    N_PER_GAL = 100
+    
+    #Number of stars per galaxy, Galaxy radii
+    N_GAL1= 100
+    N_GAL2= 100
+    GAL1_RAD = 1000
+    GAL2_RAD = 1000
+
+    #Timestep, number of steps, opening angle
+    dt = 0.25
+    n_steps = 4000
+    theta = 0.5
 
     # Galaxy separation and approach velocity
     offset = 1000
@@ -270,10 +302,10 @@ if __name__ == "__main__":
     gal1_center = np.array([-offset, 0.0])
     gal1_vel = np.array([v_approach, 0.0])
     gal1 = make_spiral_galaxy(
-        N_PER_GAL,
+        N_GAL1,
         center=gal1_center,
         com_velocity=gal1_vel,
-        radius=1000,
+        radius=GAL1_RAD,
         rot_dir=+1,
     )
 
@@ -281,84 +313,82 @@ if __name__ == "__main__":
     gal2_center = np.array([offset, 0.0])
     gal2_vel = np.array([-v_approach, 0.0])
     gal2 = make_spiral_galaxy(
-        N_PER_GAL,
+        N_GAL2,
         center=gal2_center,
         com_velocity=gal2_vel,
-        radius=1000,
+        radius=GAL2_RAD,
         rot_dir=-1,
     )
 
     stars = gal1 + gal2
     N_TOTAL = len(stars)
 
-    # Simulation parameters
-    dt = 0.05
-    n_steps = 12000
-    theta = 0.2
-
     print(f"Simulating {N_TOTAL} stars for {n_steps} steps...")
 
     # Evolve system
-    frames = []
-    FRAME_STRIDE = 10   # save every 10th step
+    FRAME_STRIDE = 10
 
-    for t in range(n_steps):
-        step_leapfrog(stars, dt=dt, theta=theta)
+    with imageio.get_writer("galaxy_merge.gif", mode="I", fps=20) as writer:
+        for t in range(n_steps):
+            step_leapfrog(stars, dt=dt, theta=theta)
 
-        if t % FRAME_STRIDE == 0:
-            xs = np.array([s.pos[0] for s in stars])
-            ys = np.array([s.pos[1] for s in stars])
+            if t % FRAME_STRIDE == 0:
+                xs = np.array([s.pos[0] for s in stars])
+                ys = np.array([s.pos[1] for s in stars])
 
-            xs1, ys1 = xs[:N_PER_GAL], ys[:N_PER_GAL]
-            xs2, ys2 = xs[N_PER_GAL:], ys[N_PER_GAL:]
+                xs1, ys1 = xs[:N_GAL1], ys[:N_GAL1]
+                xs2, ys2 = xs[N_GAL1:], ys[N_GAL1:]   # <-- use N_GAL1 as the split index
 
-            fig, ax = plt.subplots(figsize=(6, 6))
-            ax.scatter(xs1, ys1, s=1, alpha=0.7)
-            ax.scatter(xs2, ys2, s=1, alpha=0.7)
+                fig, ax = plt.subplots(figsize=(6, 6))
+                ax.scatter(xs1, ys1, s=1, alpha=0.7)
+                ax.scatter(xs2, ys2, s=1, alpha=0.7)
 
-            ax.set_xlim(-offset*2.5, offset*2.5)
-            ax.set_ylim(-offset*2.5, offset*2.5)
-            ax.set_aspect("equal", "box")
-            ax.set_title(f"t = {t}")
-            ax.set_xlabel("x")
-            ax.set_ylabel("y")
+                ax.set_xlim(-offset*2.5, offset*2.5)
+                ax.set_ylim(-offset*2.5, offset*2.5)
+                ax.set_aspect("equal", "box")
+                ax.set_title(f"t = {t}")
+                ax.set_xlabel("x")
+                ax.set_ylabel("y")
 
-            # ---- save figure to in-memory buffer and read as image ----
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png", dpi=100) 
-            buf.seek(0)
-            frame = imageio.imread(buf)
-            buf.close()
-            frames.append(frame)
-            plt.close(fig)
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png", dpi=100)
+                buf.seek(0)
+                frame = imageio.imread(buf)
+                buf.close()
+                plt.close(fig)
 
-            plt.close(fig)
+                writer.append_data(frame)
+
+    print("Saved galaxy_merge.gif")
+
 
 
 
     # ----------------- PLOT FINAL STATE ----------------- #
 
+    t_myr = to_myr(t * dt)
+
     xs = np.array([s.pos[0] for s in stars])
     ys = np.array([s.pos[1] for s in stars])
 
-    # First N_PER_GAL -> galaxy 1, rest -> galaxy 2
-    xs1, ys1 = xs[:N_PER_GAL], ys[:N_PER_GAL]
-    xs2, ys2 = xs[N_PER_GAL:], ys[N_PER_GAL:]
+    xs1, ys1 = xs[:N_GAL1], ys[:N_GAL1]
+    xs2, ys2 = xs[N_GAL1:], ys[N_GAL1:]
 
-    plt.figure(figsize=(6, 6))
-    plt.scatter(xs1, ys1, s=1, alpha=0.7, label="Galaxy 1")
-    plt.scatter(xs2, ys2, s=1, alpha=0.7, label="Galaxy 2")
+    # convert to kpc for plotting
+    xs1_kpc, ys1_kpc = to_kpc(xs1), to_kpc(ys1)
+    xs2_kpc, ys2_kpc = to_kpc(xs2), to_kpc(ys2)
 
-    plt.xlabel("x")
-    plt.ylabel("y")
-    plt.title("Barnes–Hut: Merging Spiral Galaxies (final snapshot)")
-    plt.legend(markerscale=5)
-    plt.gca().set_aspect("equal", "box")
-    plt.tight_layout()
-    plt.show()
-    
-    imageio.mimsave("galaxy_merge.gif", frames, fps=20)
-    print("Saved galaxy_merge.gif")
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.scatter(xs1_kpc, ys1_kpc, s=1, alpha=0.7)
+    ax.scatter(xs2_kpc, ys2_kpc, s=1, alpha=0.7)
+
+    lim = to_kpc(offset * 2.5)
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(-lim, lim)
+    ax.set_aspect("equal", "box")
+    ax.set_title(f"t = {t_myr:.2f} Myr")
+    ax.set_xlabel("x [kpc]")
+    ax.set_ylabel("y [kpc]")
 
     
 
