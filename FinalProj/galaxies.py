@@ -260,7 +260,7 @@ def make_spiral_galaxy(
     ### Concentration of central disk. Higher Rd spreads the galaxy out more
     stars = []
     if Rd is None:
-        Rd = radius / 2.2
+        Rd = radius / 1.5
 
     M_gal = 400.0      # total "mass"
     core = 5.0         
@@ -303,19 +303,19 @@ def make_spiral_galaxy(
 if __name__ == "__main__":
     
     #Number of stars per galaxy, Galaxy radii
-    N_GAL1= 400
-    N_GAL2= 400
+    N_GAL1= 200
+    N_GAL2= 200
     GAL1_RAD = 2000
     GAL2_RAD = 2000
 
     #Timestep, number of steps, opening angle
-    dt = 0.1
+    dt = 0.2
     n_steps = 16000
     theta = 1
 
     # Galaxy separation and approach velocity
     offset = 3000
-    v_approach = 0.5
+    v_approach = 1
 
     # Galaxy 1: left, moving right
     gal1_center = np.array([-offset, 0.0])
@@ -337,6 +337,7 @@ if __name__ == "__main__":
         com_velocity=gal2_vel,
         radius=GAL2_RAD,
         rot_dir=-1,
+        pitch=4
     )
 
     stars = gal1 + gal2
