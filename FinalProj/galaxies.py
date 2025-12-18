@@ -314,8 +314,8 @@ if __name__ == "__main__":
     theta = 1
 
     # Galaxy separation and approach velocity
-    offset = 3000
-    v_approach = 1
+    offset = 2500
+    v_approach = 0.2
 
     # Galaxy 1: left, moving right
     gal1_center = np.array([-offset, 0.0])
